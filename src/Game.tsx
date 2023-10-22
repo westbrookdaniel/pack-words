@@ -102,13 +102,18 @@ export default function Game({
             return v ? v : cell;
           }),
         );
+
+        const isOneWord = getIsOneWord(board, newBoard);
+        if (!isOneWord) {
+          return;
+        }
+
         const previousWords = await getWords(board);
         const newWords = (await getWords(newBoard)).filter(
           (w) => !previousWords.includes(w),
         );
-        // TODO: ensure only 1 word was entered
-        setBoard(newBoard);
 
+        setBoard(newBoard);
         const newScores = newWords.map((word) => ({
           word,
           score: word.length,
@@ -326,3 +331,49 @@ export const highScore = {
     }
   },
 };
+
+function getIsOneWord(prevBoard: Board, newBoard: Board): boolean {
+  const differentCells: [number, number][] = [];
+  prevBoard.forEach((row, y) =>
+    row.forEach((cell, x) => {
+      if (cell !== newBoard[y][x]) {
+        differentCells.push([x, y]);
+      }
+    }),
+  );
+
+  const isSameRow = differentCells.every(
+    ([_x, y]) => y === differentCells[0][1],
+  );
+  const isSameColumn = differentCells.every(
+    ([x, _y]) => x === differentCells[0][0],
+  );
+  if (!isSameRow && !isSameColumn) return false;
+
+  const gapCells: [number, number][] = [];
+  if (isSameRow) {
+    const xCoords = differentCells.map(([x]) => x);
+    const largestX = Math.max(...xCoords);
+    const smallestX = Math.min(...xCoords);
+    for (let x = smallestX; x <= largestX; x++) {
+      if (differentCells.find(([x2]) => x2 === x) === undefined) {
+        gapCells.push([x, differentCells[0][1]]);
+      }
+    }
+  } else if (isSameColumn) {
+    const yCoords = differentCells.map(([_, y]) => y);
+    const largestY = Math.max(...yCoords);
+    const smallestY = Math.min(...yCoords);
+    for (let y = smallestY; y <= largestY; y++) {
+      if (differentCells.find(([_, y2]) => y2 === y) === undefined) {
+        gapCells.push([differentCells[0][0], y]);
+      }
+    }
+  }
+
+  const wereAllGapsFilled = gapCells.every(
+    ([x, y]) => typeof prevBoard[y][x] === "string",
+  );
+
+  return wereAllGapsFilled;
+}
