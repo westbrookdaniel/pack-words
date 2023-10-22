@@ -10,16 +10,18 @@ import {
   AlertDialogContent,
 } from "./ui/alert-dialog";
 
-type Alert = {
+export type Alert = {
   title: string;
-  description: string;
+  description: string | JSX.Element;
   cancelText?: string;
   actionText?: string;
   onConfirm?: () => void;
 };
 
-export function useAlert() {
-  const [alert, setAlert] = useState<Alert | null>(null);
+export function useAlert(options?: { defaultOpen?: Alert | null }) {
+  const [alert, setAlert] = useState<Alert | null>(
+    options?.defaultOpen ?? null,
+  );
   return {
     alert: (data: Alert) => setAlert(data),
     element: (

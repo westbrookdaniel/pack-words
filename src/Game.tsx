@@ -317,6 +317,17 @@ function wordCase(word: string) {
 
 const highScoreDateFormatter = new Intl.DateTimeFormat("en-US");
 export const highScore = {
+  all: () => {
+    const json = localStorage.getItem(`highScore`);
+    if (!json) return null;
+    try {
+      const data = JSON.parse(json);
+      if (typeof data !== "object") return null;
+      return data;
+    } catch {
+      return null;
+    }
+  },
   get: (date: Date) => {
     const json = localStorage.getItem(`highScore`);
     if (!json) return 0;
