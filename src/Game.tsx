@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AspectRatio } from "./components/ui/aspect-ratio";
+import { getSeededRandom } from "./lib/getSeededRandom";
 import { cn } from "./lib/utils";
 
 const BOARD_WIDTH = 7;
@@ -8,20 +9,13 @@ const BOARD_HEIGHT = 7;
 type Cell = string | null;
 type Board = Cell[][];
 
-const defaultBoard: Board = Array.from({ length: BOARD_HEIGHT }, () =>
-  Array.from({ length: BOARD_WIDTH }, () => null),
-);
-// Add a few random chars
-defaultBoard[2][4] = "M";
-defaultBoard[0][1] = "C";
-
 const styles = {
   border: "border-2 border-neutral-200",
   button: cn(
     "bg-neutral-200 font-bold xl:text-xl py-2 xl:py-3 px-8",
     "hover:bg-neutral-300 active:bg-neutral-400",
     "border-4 border-neutral-200",
-    "hover:border-neutral-300 active:border-neutral-400",
+    "hober:border-neutral-300 active:border-neutral-400",
   ),
   secondaryButton: cn(
     "border-4 border-neutral-200",
@@ -35,17 +29,52 @@ type Score = {
   score: number;
 };
 
-const defaults = {
-  board: defaultBoard,
-  boardKey: JSON.stringify(defaultBoard),
-  lastScores: [] as Score[],
-  olderScores: [] as Score[],
+export function getDefaultsForDate(date: Date): Defaults {
+  const ran = getSeededRandom(date);
+
+  const defaultBoard: Board = Array.from({ length: BOARD_HEIGHT }, () =>
+    Array.from({ length: BOARD_WIDTH }, () => null),
+  );
+  // Add a few random chars
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const hardLetters = "QXZ";
+  const N_LETTERS = ran(2, 6);
+  for (let i = 0; i < N_LETTERS; i++) {
+    const x = ran(0, BOARD_WIDTH - 1);
+    const y = ran(0, BOARD_HEIGHT - 1);
+
+    let letter = letters[ran(0, letters.length - 1)];
+    // Lower chance of getting hard letters by making it pick twice
+    if (hardLetters.includes(letter)) {
+      letter = letters[ran(0, letters.length - 1)];
+    }
+
+    defaultBoard[y][x] = letter;
+  }
+
+  const defaults = {
+    board: defaultBoard,
+    boardKey: JSON.stringify(defaultBoard),
+    lastScores: [] as Score[],
+    olderScores: [] as Score[],
+  };
+  return defaults;
+}
+
+type Defaults = {
+  board: Board;
+  boardKey: string;
+  lastScores: Score[];
+  olderScores: Score[];
 };
 
-/**
- * Scrabble + Sudoku
- */
-export default function Game({ onFinish }: { onFinish: () => void }) {
+export default function Game({
+  onFinish,
+  defaults,
+}: {
+  onFinish: () => void;
+  defaults: Defaults;
+}) {
   const [board, setBoard] = useState(defaults.board);
   const [lastScores, setLastScores] = useState<Score[]>(defaults.lastScores);
   const [olderScores, setOlderScores] = useState<Score[]>(defaults.olderScores);
