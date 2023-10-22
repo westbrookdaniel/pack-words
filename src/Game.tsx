@@ -16,14 +16,16 @@ defaultBoard[2][4] = "M";
 defaultBoard[0][1] = "C";
 
 const styles = {
-  border: "border border-2 border-neutral-200",
+  border: "border-2 border-neutral-200",
   button: cn(
-    "bg-neutral-200 font-bold text-xl py-3 px-8",
+    "bg-neutral-200 font-bold xl:text-xl py-2 xl:py-3 px-8",
     "hover:bg-neutral-300 active:bg-neutral-400",
+    "border-4 border-neutral-200",
+    "hover:border-neutral-300 active:border-neutral-400",
   ),
   secondaryButton: cn(
-    "border border-4 border-neutral-200",
-    "font-bold text-xl py-3 px-8",
+    "border-4 border-neutral-200",
+    "font-bold xl:text-xl py-2 xl:py-3 px-8",
     "hover:bg-neutral-200 active:bg-neutral-300",
   ),
 };
@@ -33,28 +35,32 @@ type Score = {
   score: number;
 };
 
+const defaults = {
+  board: defaultBoard,
+  boardKey: JSON.stringify(defaultBoard),
+  lastScores: [] as Score[],
+  olderScores: [] as Score[],
+};
+
 /**
  * Scrabble + Sudoku
  */
-export default function Game() {
-  const [board, setBoard] = useState(defaultBoard);
-  const [lastScores, setLastScores] = useState<Score[]>([]);
-  const [olderScores, setOlderScores] = useState<Score[]>([]);
+export default function Game({ onFinish }: { onFinish: () => void }) {
+  const [board, setBoard] = useState(defaults.board);
+  const [lastScores, setLastScores] = useState<Score[]>(defaults.lastScores);
+  const [olderScores, setOlderScores] = useState<Score[]>(defaults.olderScores);
 
   // TODO put this on board and account in scoring
   // TODO add combo multiplier system too?
-  const [multipliers] = useState([
-    { x: 3, y: 4, by: 2 },
-    { x: 5, y: 6, by: 2 },
-  ]);
+  // const [multipliers] = useState([
+  //   { x: 3, y: 4, by: 2 },
+  //   { x: 5, y: 6, by: 2 },
+  // ]);
 
   const scores = [...lastScores, ...olderScores];
-
   const totalScore = scores.reduce((acc, { score }) => acc + score, 0);
 
-  function onFinish() {
-    // TODO
-  }
+  const boardKey = JSON.stringify(board);
 
   return (
     <form
@@ -82,7 +88,7 @@ export default function Game() {
         setLastScores(newScores);
       }}
     >
-      <div className="flex gap-8 w-full">
+      <div className="flex flex-col-reverse xl:flex-row gap-8 w-full">
         <div className="min-w-[90px] space-y-8">
           <div>
             <p className="text-lg font-bold text-neutral-400">Score</p>
@@ -123,18 +129,26 @@ export default function Game() {
           >
             {board.map((row, y) =>
               row.map((cell, x) => (
-                <Cell key={`${x}-${y}`} cell={cell} x={x} y={y} />
+                <Cell key={`${x}${y}${boardKey}`} cell={cell} x={x} y={y} />
               )),
             )}
           </div>
           <div className="flex justify-end gap-4">
-            <button
-              className={styles.secondaryButton}
-              type="button"
-              onClick={onFinish}
-            >
-              Finish
-            </button>
+            {boardKey !== defaults.boardKey && (
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                onClick={() => {
+                  highScore.set(new Date(), totalScore);
+                  onFinish();
+                  setBoard(defaults.board);
+                  setLastScores(defaults.lastScores);
+                  setOlderScores(defaults.olderScores);
+                }}
+              >
+                Finish
+              </button>
+            )}
             <button className={styles.button} type="submit">
               Lock In
             </button>
@@ -158,10 +172,12 @@ function Cell({ cell, x, y }: { cell: Cell; x: number; y: number }) {
         )}
       >
         {cell ? (
-          <p className="text-center text-3xl uppercase font-bold">{cell}</p>
+          <p className="text-center text-2xl xl:text-3xl uppercase font-bold">
+            {cell}
+          </p>
         ) : (
           <input
-            className="w-full h-full text-center text-3xl uppercase font-bold"
+            className="w-full h-full text-center text-2xl xl:text-3xl uppercase font-bold"
             type="text"
             value={value}
             id={`cell-${x}-${y}`}
@@ -180,7 +196,7 @@ function Cell({ cell, x, y }: { cell: Cell; x: number; y: number }) {
 const checkedWords: Record<string, boolean> = {};
 async function isValidWord(word: string): Promise<boolean> {
   if (word.length < 3) return false;
-  if (checkedWords[word]) return checkedWords[word];
+  if (word in checkedWords) return checkedWords[word];
   const escapedWord = encodeURIComponent(word);
   const res = await fetch(
     `https://api.dictionaryapi.dev/api/v2/entries/en/${escapedWord}`,
@@ -232,3 +248,52 @@ async function getWords(board: Board) {
 function wordCase(word: string) {
   return word[0].toUpperCase() + word.slice(1).toLowerCase();
 }
+
+const highScoreDateFormatter = new Intl.DateTimeFormat("en-US");
+export const highScore = {
+  get: (date: Date) => {
+    const json = localStorage.getItem(`highScore`);
+    if (!json) return 0;
+    try {
+      const data = JSON.parse(json);
+      const key = highScoreDateFormatter.format(date);
+      const n = data[key];
+      if (typeof n !== "number") return 0;
+      return n;
+    } catch {
+      return 0;
+    }
+  },
+  set: (date: Date, score: number) => {
+    let done = false;
+    const json = localStorage.getItem(`highScore`);
+    if (json) {
+      try {
+        const data = JSON.parse(json);
+        const key = highScoreDateFormatter.format(date);
+        const n = data[key];
+        if (typeof n === "number" && n >= score) {
+          done = true;
+        } else {
+          localStorage.setItem(
+            `highScore`,
+            JSON.stringify({
+              ...data,
+              [key]: score,
+            }),
+          );
+          done = true;
+        }
+      } catch {}
+    }
+    if (!done) {
+      const key = highScoreDateFormatter.format(date);
+      localStorage.setItem(
+        `highScore`,
+        JSON.stringify({
+          [key]: score,
+        }),
+      );
+    }
+  },
+};
