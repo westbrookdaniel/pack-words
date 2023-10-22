@@ -8,22 +8,22 @@ export default function App() {
   const checkHighScore = useReducer(() => ({}), {})[1];
   const score = highScore.get(date);
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col xl:min-h-screen ">
       <header
         className={cn(
           "w-full flex items-center justify-between py-4 px-6 xl:px-8",
           "bg-neutral-100",
         )}
       >
-        <h1 className="font-bold text-xl">Pack Words</h1>
-        <p className="xl:block hidden">
+        <h1 className="font-bold xl:text-xl text-lg">Pack Words</h1>
+        <p className="xl:block hidden text-sm">
           Your high score for {formatter.format(date)} - {score}
         </p>
         <p className="xl:hidden">
           {formatter.format(date)} - {score}
         </p>
       </header>
-      <main className="w-screen xl:h-screen flex items-center justify-center">
+      <main className="w-screen flex-grow flex items-center justify-center">
         <div className="p-6 xl:p-8 w-full max-w-xl">
           <Game
             onFinish={() => checkHighScore()}

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { AspectRatio } from "./components/ui/aspect-ratio";
+import { Button } from "./components/ui/button";
+import { useAlert } from "./components/useAlert";
 import { getSeededRandom } from "./lib/getSeededRandom";
 import { cn } from "./lib/utils";
 
@@ -75,9 +77,13 @@ export default function Game({
   onFinish: () => void;
   defaults: Defaults;
 }) {
+  const { alert, element } = useAlert();
+
   const [board, setBoard] = useState(defaults.board);
   const [lastScores, setLastScores] = useState<Score[]>(defaults.lastScores);
   const [olderScores, setOlderScores] = useState<Score[]>(defaults.olderScores);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // TODO put this on board and account in scoring
   // TODO add combo multiplier system too?
@@ -105,13 +111,27 @@ export default function Game({
 
         const isOneWord = getIsOneWord(board, newBoard);
         if (!isOneWord) {
+          alert({
+            title: "Looks like you entered more than one word",
+            description: "You're only allowed to enter one word at a time",
+          });
           return;
         }
 
+        setIsSubmitting(true);
         const previousWords = await getWords(board);
         const newWords = (await getWords(newBoard)).filter(
           (w) => !previousWords.includes(w),
         );
+        setIsSubmitting(false);
+
+        if (newWords.length === 0) {
+          alert({
+            title: "We couldn't find any valid words",
+            description: "Try again with a different word",
+          });
+          return;
+        }
 
         setBoard(newBoard);
         const newScores = newWords.map((word) => ({
@@ -125,7 +145,7 @@ export default function Game({
       <div className="flex flex-col-reverse xl:flex-row gap-8 w-full">
         <div className="min-w-[90px] space-y-8">
           <div>
-            <p className="text-lg font-bold text-neutral-400">Score</p>
+            <p className="font-bold text-neutral-400">Score</p>
             <p className="font-bold text-2xl text-right">
               {totalScore.toString().padStart(4, "0")}
             </p>
@@ -169,26 +189,38 @@ export default function Game({
           </div>
           <div className="flex justify-end gap-4">
             {boardKey !== defaults.boardKey && (
-              <button
-                className={styles.secondaryButton}
+              <Button
+                variant="secondary"
+                className="px-8"
                 type="button"
+                disabled={isSubmitting}
                 onClick={() => {
-                  highScore.set(new Date(), totalScore);
-                  onFinish();
-                  setBoard(defaults.board);
-                  setLastScores(defaults.lastScores);
-                  setOlderScores(defaults.olderScores);
+                  alert({
+                    title: "Are you sure you want to finish?",
+                    description:
+                      "This will clear the board, and update your high score if you beat it",
+                    cancelText: "Keep Playing",
+                    actionText: "Finish",
+                    onConfirm: () => {
+                      highScore.set(new Date(), totalScore);
+                      onFinish();
+                      setBoard(defaults.board);
+                      setLastScores(defaults.lastScores);
+                      setOlderScores(defaults.olderScores);
+                    },
+                  });
                 }}
               >
                 Finish
-              </button>
+              </Button>
             )}
-            <button className={styles.button} type="submit">
+            <Button type="submit" className="px-8" disabled={isSubmitting}>
               Lock In
-            </button>
+            </Button>
           </div>
         </div>
       </div>
+      {element}
     </form>
   );
 }
